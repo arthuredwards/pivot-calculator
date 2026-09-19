@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NQ Pivot Calculator — Art Edwards</title>
+<meta name="description" content="Free NQ / Nasdaq-100 futures pivot point calculator. Classic floor pivots, Fibonacci pivots and Camarilla levels, computed instantly.">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e;
+    --accent:#58a6ff; --green:#3fb950; --red:#f85149; --gold:#d29922;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:24px 16px 48px;
+  }
+  .wrap{width:100%; max-width:560px}
+  header{text-align:center; margin-bottom:20px}
+  header h1{font-size:1.5rem; letter-spacing:.5px}
+  header h1 .tag{color:var(--gold)}
+  header p{color:var(--muted); font-size:.9rem; margin-top:6px}
+  .card{
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:10px; padding:20px; margin-bottom:16px;
+  }
+  label{display:block; font-size:.8rem; color:var(--muted); margin:12px 0 4px}
+  input{
+    width:100%; padding:12px; font-size:1.05rem;
+    background:var(--bg); border:1px solid var(--border); border-radius:6px;
+    color:var(--text);
+  }
+  input:focus{outline:none; border-color:var(--accent)}
+  .btn{
+    width:100%; margin-top:16px; padding:13px;
+    background:var(--accent); color:#0d1117; border:none; border-radius:6px;
+    font-size:1rem; font-weight:700; cursor:pointer;
+  }
+  .btn:hover{filter:brightness(1.1)}
+  .tabs{display:flex; gap:6px; margin-bottom:14px}
+  .tab{
+    flex:1; padding:10px 4px; text-align:center; cursor:pointer;
+    background:var(--bg); border:1px solid var(--border); border-radius:6px;
+    color:var(--muted); font-size:.85rem; font-weight:600;
+  }
+  .tab.active{background:var(--accent); color:#0d1117; border-color:var(--accent)}
+  table{width:100%; border-collapse:collapse; font-size:.95rem}
+  th,td{padding:10px 8px; text-align:left; border-bottom:1px solid var(--border)}
+  th{color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.5px}
+  td.val{font-variant-numeric:tabular-nums; font-weight:600; text-align:right}
+  .r{color:var(--red)} .s{color:var(--green)} .p{color:var(--gold)}
+  .hint{color:var(--muted); font-size:.8rem; text-align:center; padding:24px 8px}
+  footer{margin-top:24px; text-align:center; color:var(--muted); font-size:.85rem; line-height:1.7}
+  footer a{color:var(--accent); text-decoration:none; margin:0 8px}
+  footer a:hover{text-decoration:underline}
+  footer .note{margin-top:8px; font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="tag">NQ</span> Pivot Calculator</h1>
+    <p>Art Edwards &mdash; Nasdaq-100 futures daily levels</p>
+  </header>
+
+  <div class="card">
+    <label for="high">Prior Session High</label>
+    <input id="high" type="number" step="0.01" inputmode="decimal" placeholder="e.g. 29993.25">
+    <label for="low">Prior Session Low</label>
+    <input id="low" type="number" step="0.01" inputmode="decimal" placeholder="e.g. 29648.00">
+    <label for="close">Prior Session Close</label>
+    <input id="close" type="number" step="0.01" inputmode="decimal" placeholder="e.g. 29917.25">
+    <button class="btn" onclick="calc()">Calculate Levels</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-m="classic" onclick="setMode('classic')">Classic</div>
+    <div class="tab" data-m="fib" onclick="setMode('fib')">Fibonacci</div>
+    <div class="tab" data-m="cam" onclick="setMode('cam')">Camarilla</div>
+  </div>
+
+  <div class="card" id="results">
+    <div class="hint">Enter the prior session&rsquo;s high, low and close, then hit Calculate.</div>
+  </div>
+
+  <footer>
+    <div>
+      <a href="https://x.com/realArtEdwards" target="_blank" rel="noopener">Follow on X</a>
+      <a href="https://github.com/arthuredwards/nq-daily-levels" target="_blank" rel="noopener">NQ Daily Levels Repo</a>
+    </div>
+    <div class="note">Daily NQ levels posted before the open.</div>
+  </footer>
+</div>
+
+<script>
+let mode = 'classic';
+
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.m === m));
+  const h = parseFloat(document.getElementById('high').value);
+  if(!isNaN(h)) calc(); // recalc if inputs exist
+}
+
+function f(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function calc(){
+  const H = parseFloat(document.getElementById('high').value);
+  const L = parseFloat(document.getElementById('low').value);
+  const C = parseFloat(document.getElementById('close').value);
+  const box = document.getElementById('results');
+
+  if([H,L,C].some(v => isNaN(v))){
+    box.innerHTML = '<div class="hint">Please enter all three values.</div>';
+    return;
+  }
+  if(H < L){
+    box.innerHTML = '<div class="hint">High must be greater than Low.</div>';
+    return;
+  }
+
+  const P = (H + L + C) / 3;
+  const R = H - L;
+  let rows;
+
+  if(mode === 'fib'){
+    const f1 = 0.382, f2 = 0.618, f3 = 1.0;
+    rows = [
+      ['R3', P + R * f3, 'r'], ['R2', P + R * f2, 'r'], ['R1', P + R * f1, 'r'],
+      ['Pivot', P, 'p'],
+      ['S1', P - R * f1, 's'], ['S2', P - R * f2, 's'], ['S3', P - R * f3, 's']
+    ];
+  } else if(mode === 'cam'){
+    rows = [
+      ['R4', C + R * 1.5, 'r'], ['R3', C + R * 1.25, 'r'],
+      ['R2', C + R * 1.1666, 'r'], ['R1', C + R * 1.0833, 'r'],
+      ['Pivot', P, 'p'],
+      ['S1', C - R * 1.0833, 's'], ['S2', C - R * 1.1666, 's'],
+      ['S3', C - R * 1.25, 's'], ['S4', C - R * 1.5, 's']
+    ];
+  } else {
+    rows = [
+      ['R3', H + 2 * (P - L), 'r'],
+      ['R2', P + (H - L), 'r'],
+      ['R1', 2 * P - L, 'r'],
+      ['Pivot', P, 'p'],
+      ['S1', 2 * P - H, 's'],
+      ['S2', P - (H - L), 's'],
+      ['S3', L - 2 * (H - P), 's']
+    ];
+  }
+
+  let html = '<table><tr><th>Level</th><th style="text-align:right">Price</th></tr>';
+  for(const [name, val, cls] of rows){
+    html += `<tr><td class="${cls}">${name}</td><td class="val">${f(val)}</td></tr>`;
+  }
+  box.innerHTML = html + '</table>';
+}
+</script>
+</body>
+</html>
