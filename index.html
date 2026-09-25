@@ -92,6 +92,7 @@
       <a href="https://github.com/arthuredwards/nq-daily-levels" target="_blank" rel="noopener">NQ Daily Levels Repo</a>
     </div>
     <div class="note">Daily NQ levels posted before the open.</div>
+    <div class="note" id="visitLine" style="visibility:hidden">&#128065; <span id="visitCount">0</span> visits</div>
   </footer>
 </div>
 
@@ -160,6 +161,20 @@ function calc(){
   }
   box.innerHTML = html + '</table>';
 }
+
+// Visit counter: counts page loads only. No cookies, no personal data.
+(function(){
+  var line = document.getElementById('visitLine');
+  fetch('https://abacus.jasoncameron.dev/hit/artedwards-nq-pivot/pivot-calculator')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d && typeof d.value === 'number'){
+        document.getElementById('visitCount').textContent = d.value.toLocaleString('en-US');
+        line.style.visibility = 'visible';
+      }
+    })
+    .catch(function(){ /* stays hidden if the counter service is down */ });
+})();
 </script>
 </body>
 </html>
